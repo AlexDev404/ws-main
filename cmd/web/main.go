@@ -6,11 +6,11 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/lewisdalwin/echo/internal/ws"
+	"github.com/alexdev404/ws-main/internal/ws"
 )
 
-func handlerHome(w http.ResponseWriter, r *http.Request){
-    w.Write([]byte("WebSockets!\n"))
+func handlerHome(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("WebSockets!\n"))
 }
 
 func main() {
