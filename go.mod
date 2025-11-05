@@ -1,4 +1,4 @@
-module github.com/lewisdalwin/echo
+module github.com/alexdev404/ws-main
 
 go 1.25.0
 
