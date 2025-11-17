@@ -74,10 +74,10 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Got a message - extend the deadline for the next read
-		_ = conn.SetReadDeadline(time.Now().Add(idleReadLimit))
+		conn.SetReadDeadline(time.Now().Add(idleReadLimit))
 		// Write a message
 		if msgType == websocket.TextMessage {
-			_ = conn.SetWriteDeadline(time.Now().Add(writeWait))
+			conn.SetWriteDeadline(time.Now().Add(writeWait))
 			err := conn.WriteMessage(websocket.TextMessage, payload)
 			if err != nil {
 				log.Printf("write error: %v", err)

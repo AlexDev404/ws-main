@@ -1,31 +1,104 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
+    <meta charset="utf-8" />
     <title>WebSocket Test</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 2rem;
+      }
+      button {
+        margin-right: 0.5rem;
+      }
+      pre {
+        background: #f4f4f4;
+        padding: 1rem;
+        border-radius: 6px;
+        height: 200px;
+        overflow-y: auto;
+      }
+    </style>
   </head>
   <body>
     <h1>WebSocket Test</h1>
-    <p>Open the console (F12)</p>
+    <button id="connect">Connect</button>
+    <button id="start">Start Sending</button>
+    <button id="stop">Stop Sending</button>
+    <pre id="log"></pre>
 
     <script>
-      let socket = new WebSocket("ws://localhost:4000/ws");
-      let excess = "*".repeat(1024 * 10);
-      socket.onopen = () => {
-        console.log("Connected!");
-        socket.send(excess);
+      let socket;
+      let i; // interval handle
+      const logEl = document.getElementById("log");
+      const log = (...args) => {
+        logEl.textContent += args.join(" ") + "\n";
+        logEl.scrollTop = logEl.scrollHeight;
+        console.log(...args);
       };
 
-      socket.onmessage = (event) => {
-        console.log("Received:", event.data);
-      };
+      const connect_btn = document.querySelector("#connect");
+      const start_btn = document.querySelector("#start");
+      const stop_btn = document.querySelector("#stop");
 
-      socket.onerror = (error) => {
-        console.error("Error:", error);
-      };
+      connect_btn.addEventListener("click", () => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          log("Already connected.");
+          return;
+        }
 
-      socket.onclose = (event) => {
-        console.log("Connection closed:", event.code, event.reason);
-      };
+        socket = new WebSocket("ws://localhost:4000/ws");
+
+        socket.onopen = () => {
+          log("OPEN ✅");
+        };
+
+        socket.onmessage = (event) => {
+          log("ECHO:", event.data);
+        };
+
+        socket.onerror = (error) => {
+          log("ERROR:", error);
+        };
+
+        socket.onclose = (event) => {
+          log("CLOSE:", event.code, event.reason);
+          // Stop interval if still running
+          if (i) {
+            clearInterval(i);
+            i = null;
+          }
+        };
+      });
+
+      start_btn.addEventListener("click", () => {
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+          log("Not connected yet.");
+          return;
+        }
+        if (i) {
+          log("Already sending.");
+          return;
+        }
+        i = setInterval(() => {
+          if (socket.readyState === WebSocket.OPEN) {
+            const msg = "ping " + Date.now();
+            socket.send(msg);
+            log("SEND:", msg);
+          }
+        }, 5000);
+        log("Started 5s ping loop.");
+      });
+
+      stop_btn.addEventListener("click", () => {
+        if (i) {
+          clearInterval(i);
+          i = null;
+          log("Stopped sending.");
+        } else {
+          log("Nothing to stop.");
+        }
+      });
     </script>
   </body>
 </html>
