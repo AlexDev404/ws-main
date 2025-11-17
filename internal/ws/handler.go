@@ -10,6 +10,11 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const (
+	writeWait     = 5 * time.Second  // max time to complete a write
+	idleReadLimit = 30 * time.Second // if we read nothing for 30s, time out
+)
+
 var allowedOrigins = []string{
 	"http://localhost:4000",
 }
@@ -45,37 +50,39 @@ var upgrader = websocket.Upgrader{
 func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	// Has to be an HTTP GET request
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	// Upgrade the connection from HTTP to RFC 6455
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("Upgrade error:", err)
+		log.Printf("upgrade error: %v", err)
 		return
 	}
 	defer conn.Close()
+	// Limit message size
+	conn.SetReadLimit(1024 * 4)
+	// Idle timeout window starts now
+	conn.SetReadDeadline(time.Now().Add(idleReadLimit))
 
-	// Read a message
-	msgType, payload, err := conn.ReadMessage()
-	if err != nil {
-		log.Println("Read error:", err)
-		return
-	}
-
-	// Process a message
-	if msgType == websocket.TextMessage {
-		err := conn.WriteMessage(websocket.TextMessage, payload)
+	// Read/Echo loop
+	for {
+		msgType, payload, err := conn.ReadMessage()
 		if err != nil {
-			log.Println("Write error:", err)
+			log.Printf("read error: %v", err)
 			return
 		}
+		// Got a message - extend the deadline for the next read
+		_ = conn.SetReadDeadline(time.Now().Add(idleReadLimit))
+		// Write a message
+		if msgType == websocket.TextMessage {
+			_ = conn.SetWriteDeadline(time.Now().Add(writeWait))
+			err := conn.WriteMessage(websocket.TextMessage, payload)
+			if err != nil {
+				log.Printf("write error: %v", err)
+				return
+			}
+		}
 	}
-
-	_ = conn.WriteControl(
-		websocket.CloseMessage, // Close control frame (opcode = 8)
-		websocket.FormatCloseMessage(websocket.CloseNormalClosure, "bye"),
-		time.Now().Add(time.Second),
-	)
 }

@@ -9,10 +9,10 @@
 
     <script>
       let socket = new WebSocket("ws://localhost:4000/ws");
-
+      let excess = "*".repeat(1024 * 10);
       socket.onopen = () => {
         console.log("Connected!");
-        socket.send("Hello, World!");
+        socket.send(excess);
       };
 
       socket.onmessage = (event) => {
