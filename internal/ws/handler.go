@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -51,7 +52,7 @@ func processCommand(payload []byte) ([]byte, error) {
 	case "multiply":
 		result = req.A * req.B
 	case "divide":
-		if req.B == 0 {
+		if math.Abs(req.B) < 1e-9 {
 			errMsg = "Division by zero"
 		} else {
 			result = req.A / req.B
@@ -187,15 +188,22 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 			var responsePayload []byte
 
-			// Part 4: Check if payload is JSON (starts with '{')
+			// Part 4: Check if payload is valid JSON by attempting to unmarshal
 			if len(payload) > 0 && payload[0] == '{' {
-				jsonResponse, err := processCommand(payload)
-				if err != nil {
-					log.Printf("JSON processing error: %v", err)
-					responsePayload = []byte(fmt.Sprintf("[Msg #%d] Error processing command", count))
+				var testJSON map[string]interface{}
+				if json.Unmarshal(payload, &testJSON) == nil {
+					// Valid JSON - process as command
+					jsonResponse, err := processCommand(payload)
+					if err != nil {
+						log.Printf("JSON processing error: %v", err)
+						responsePayload = []byte(fmt.Sprintf("[Msg #%d] Error processing command", count))
+					} else {
+						// For JSON commands, we don't add the message counter prefix
+						responsePayload = jsonResponse
+					}
 				} else {
-					// For JSON commands, we don't add the message counter prefix
-					responsePayload = jsonResponse
+					// Invalid JSON - treat as normal text message
+					responsePayload = []byte(fmt.Sprintf("[Msg #%d] %s", count, payload))
 				}
 			} else {
 				// Part 1: Check if the message starts with "UPPER:"
